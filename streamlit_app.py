@@ -28,7 +28,7 @@ if uploaded_file is not None:
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": [
-            {"type": "text", "text": "Pretend you are a move manager and are dealing with a client who has a goal to liquidate the items in their space. The customer has provided the following image of their [insert space here] please provide step by step instructions based on the particular items that are in the image on how the customer can acccomplish their goal. Provide resources for the customer to read related to their goal. Please make mention of partciular items in the room which may have value on the secondary market. Look at the image as if you were a move manager seeing the space for the first time. Please use an upbeat tone, and end the response with an inspirational quote that will get the customer excited to start their project, and relate it to how they will feel when the project is complete. "},
+            {"type": "text", "text": st.secrets["prompts"]["liquidate_prompt"]},
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}}
         ]}
     ]
