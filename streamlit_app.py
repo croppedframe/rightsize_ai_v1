@@ -92,35 +92,11 @@ if uploaded_file is not None:
                 stream=True
             )
 
-        for chunk in response:
-            if chunk.choices[0].delta.content:
-                full_response += chunk.choices[0].delta.content  # Append new words
-                response_container.markdown(full_response)  # Update output dynamically
-                st.session_state.gpt_response = full_response
-                st.session_state.download_ready = True  # Mark as ready
+    # Display streamed response
+    response_container = st.empty()  # Creates a placeholder for the response
+    full_response = ""  # Store the full response
 
-    if st.session_state.download_ready:
-        export_as_pdf = st.button("Export Report")
-
-        def create_download_link(val, filename):
-            b64 = base64.b64encode(val)  # val looks like b'...'
-            return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="{filename}.pdf">Download file</a>'
-
-        if export_as_pdf:
-            pdf = FPDF()
-            pdf.add_page()
-
-            # Load and use a Unicode-compatible font
-            pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
-            pdf.set_font("DejaVu", "", 12)
-
-            # Use multi_cell for proper text wrapping
-            pdf.multi_cell(0, 10, st.session_state.gpt_response)
-
-            # Encode the PDF properly
-            pdf_output = pdf.output(dest="S").encode("latin1", "ignore")  # Ignores unsupported characters
-            b64 = base64.b64encode(pdf_output).decode()
-
-            # Generate download link
-            href = f'<a href="data:application/octet-stream;base64,{b64}" download="report.pdf">Download file</a>'
-            st.markdown(href, unsafe_allow_html=True)
+    for chunk in response:
+        if chunk.choices[0].delta.content:
+            full_response += chunk.choices[0].delta.content  # Append new words
+            response_container.markdown(full_response)  # Update output dynamically
