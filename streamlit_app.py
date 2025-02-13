@@ -92,11 +92,37 @@ if uploaded_file is not None:
                 stream=True
             )
 
-    # Display streamed response
-    response_container = st.empty()  # Creates a placeholder for the response
-    full_response = ""  # Store the full response
+        for chunk in response:
+            if chunk.choices[0].delta.content:
+                full_response += chunk.choices[0].delta.content  # Append new words
+                response_container.markdown(full_response)  # Update output dynamically
+                st.session_state.gpt_response = full_response
+                st.session_state.download_ready = True  # Mark as ready
 
-    for chunk in response:
-        if chunk.choices[0].delta.content:
-            full_response += chunk.choices[0].delta.content  # Append new words
-            response_container.markdown(full_response)  # Update output dynamically
+# If download is ready, create the export button and PDF generation logic
+if st.session_state.download_ready:
+    export_as_pdf = st.button("Export Report")
+
+    # Function to create a download link for the PDF
+    def create_download_link(val, filename):
+        b64 = base64.b64encode(val)  # val looks like b'...'
+        return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="{filename}.pdf">Download file</a>'
+
+    if export_as_pdf:
+        # Initialize the PDF object
+        pdf = FPDF()
+        pdf.add_page()
+
+        # Set the font (use one that supports most characters)
+        pdf.set_font("Arial", size=12)
+
+        # Add the full_response text to the PDF, using multi_cell for wrapping text
+        pdf.multi_cell(0, 10, st.session_state.gpt_response)
+
+        # Generate the PDF output in byte string format
+        pdf_output = pdf.output(dest="S").encode("latin1")  # Generate byte string for PDF
+        b64 = base64.b64encode(pdf_output).decode()  # Base64 encode the PDF content
+
+        # Create a download link with base64-encoded PDF
+        href = f'<a href="data:application/octet-stream;base64,{b64}" download="gpt_response_report.pdf">Download PDF</a>'
+        st.markdown(href, unsafe_allow_html=True)
