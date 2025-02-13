@@ -1,7 +1,7 @@
 import streamlit as st
 import base64
 from openai import OpenAI
-from fpdf import FPDF
+from fpdf2 import FPDF
 
 # OpenAI client
 client = OpenAI(api_key=st.secrets["general"]["project_oai_key"])
