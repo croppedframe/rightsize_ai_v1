@@ -1,7 +1,10 @@
+import sys
+print(sys.executable)
+
 import streamlit as st
 import base64
 from openai import OpenAI
-from fpdf2 import FPDF
+from fpdf import FPDF
 
 # OpenAI client
 client = OpenAI(api_key=st.secrets["general"]["project_oai_key"])
@@ -113,14 +116,17 @@ if st.session_state.download_ready:
         pdf = FPDF()
         pdf.add_page()
 
-        # Set the font (use one that supports most characters)
-        pdf.set_font("Arial", size=12)
+        
+        # Add a Unicode-compatible font
+        pdf.add_font('ArialUnicode', '', 'Arial-Unicode-Regular.ttf', uni=True)
+        pdf.set_font('ArialUnicode', '', 12)
+
 
         # Add the full_response text to the PDF, using multi_cell for wrapping text
         pdf.multi_cell(0, 10, st.session_state.gpt_response)
 
         # Generate the PDF output in byte string format
-        pdf_output = pdf.output(dest="S").encode("latin1")  # Generate byte string for PDF
+        pdf_output = pdf.output(dest="S")  # Returns a bytearray, no need to encode
         b64 = base64.b64encode(pdf_output).decode()  # Base64 encode the PDF content
 
         # Create a download link with base64-encoded PDF
