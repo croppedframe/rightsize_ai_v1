@@ -1,10 +1,10 @@
-import sys
-print(sys.executable)
-
 import streamlit as st
 import base64
 from openai import OpenAI
 from fpdf import FPDF
+import markdown
+from bs4 import BeautifulSoup
+from io import BytesIO
 
 # OpenAI client
 client = OpenAI(api_key=st.secrets["general"]["project_oai_key"])
@@ -14,6 +14,7 @@ if "gpt_response" not in st.session_state:
     st.session_state.gpt_response = ""  # Stores GPT output
 if "download_ready" not in st.session_state:
     st.session_state.download_ready = False
+export_as_pdf = ""
 
 def encode_image(uploaded_file):
     """Convert uploaded image file to Base64."""
@@ -99,36 +100,35 @@ if uploaded_file is not None:
             if chunk.choices[0].delta.content:
                 full_response += chunk.choices[0].delta.content  # Append new words
                 response_container.markdown(full_response)  # Update output dynamically
-                st.session_state.gpt_response = full_response
+                st.session_state.gpt_response = markdown.markdown(full_response)
                 st.session_state.download_ready = True  # Mark as ready
 
-# If download is ready, create the export button and PDF generation logic
+# Ensure the session state variable exists
+if "download_ready" not in st.session_state:
+    st.session_state.download_ready = False
+
 if st.session_state.download_ready:
-    export_as_pdf = st.button("Export Report")
+    # Initialize the PDF object
+    pdf = FPDF()
+    pdf.add_page()
 
-    # Function to create a download link for the PDF
-    def create_download_link(val, filename):
-        b64 = base64.b64encode(val)  # val looks like b'...'
-        return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="{filename}.pdf">Download file</a>'
+    # Add a Unicode-compatible font
+    pdf.add_font('ArialUnicode', '', 'Arial-Unicode-Regular.ttf', uni=True)
+    pdf.set_font('ArialUnicode', '', 12)
 
-    if export_as_pdf:
-        # Initialize the PDF object
-        pdf = FPDF()
-        pdf.add_page()
+    # Convert GPT response from HTML to plain text
+    text_content = BeautifulSoup(st.session_state.gpt_response, "html.parser").get_text()
+    pdf.multi_cell(0, 10, text_content)
 
-        
-        # Add a Unicode-compatible font
-        pdf.add_font('ArialUnicode', '', 'Arial-Unicode-Regular.ttf', uni=True)
-        pdf.set_font('ArialUnicode', '', 12)
+    # Generate the PDF output as bytes
+    pdf_output = BytesIO()
+    pdf.output(pdf_output, dest="F")
+    pdf_output.seek(0)  # Reset pointer to start
 
-
-        # Add the full_response text to the PDF, using multi_cell for wrapping text
-        pdf.multi_cell(0, 10, st.session_state.gpt_response)
-
-        # Generate the PDF output in byte string format
-        pdf_output = pdf.output(dest="S")  # Returns a bytearray, no need to encode
-        b64 = base64.b64encode(pdf_output).decode()  # Base64 encode the PDF content
-
-        # Create a download link with base64-encoded PDF
-        href = f'<a href="data:application/octet-stream;base64,{b64}" download="gpt_response_report.pdf">Download PDF</a>'
-        st.markdown(href, unsafe_allow_html=True)
+    # Single-click download button
+    st.download_button(
+        label="Download Report as PDF",
+        data=pdf_output,
+        file_name="gpt_response_report.pdf",
+        mime="application/pdf"
+    )
