@@ -2,5 +2,5 @@ streamlit
 openai
 fpdf2
 markdown
-bs4
+beautifulsoup4
 io
