@@ -2,3 +2,5 @@ streamlit
 openai
 fpdf2
 markdown
+bs4
+io
