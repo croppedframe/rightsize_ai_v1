@@ -2,6 +2,3 @@ streamlit
 openai
 fpdf2
 markdown
-base64
-io
-bs4
