@@ -2,8 +2,6 @@ import streamlit as st
 import base64
 from openai import OpenAI
 from fpdf import FPDF
-import markdown
-from bs4 import BeautifulSoup
 from io import BytesIO
 
 # OpenAI client
@@ -100,7 +98,7 @@ if uploaded_file is not None:
             if chunk.choices[0].delta.content:
                 full_response += chunk.choices[0].delta.content  # Append new words
                 response_container.markdown(full_response)  # Update output dynamically
-                st.session_state.gpt_response = markdown.markdown(full_response)
+                st.session_state.gpt_response = full_response
                 st.session_state.download_ready = True  # Mark as ready
 
 # Ensure the session state variable exists
@@ -116,8 +114,7 @@ if st.session_state.download_ready:
     pdf.add_font('ArialUnicode', '', 'Arial-Unicode-Regular.ttf', uni=True)
     pdf.set_font('ArialUnicode', '', 12)
 
-    # Convert GPT response from HTML to plain text
-    text_content = BeautifulSoup(st.session_state.gpt_response, "html.parser").get_text()
+    text_content = st.session_state.gpt_response
     pdf.multi_cell(0, 10, text_content)
 
     # Generate the PDF output as bytes
