@@ -3,7 +3,53 @@ import base64
 from openai import OpenAI
 from fpdf import FPDF
 from io import BytesIO
+import re
+import os
 
+# markdown to pdf function
+class PDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        # Add a Unicode-compatible font (check if fonts exist before loading)
+        regular_font_path = "/workspaces/rightsize_ai_v1/Arial-Unicode-Regular.ttf"
+        bold_font_path = "/workspaces/rightsize_ai_v1/Arial-Unicode-Bold.ttf"
+
+        if os.path.exists(regular_font_path) and os.path.exists(bold_font_path):
+            self.add_font("ArialUnicode", "", regular_font_path, uni=True)
+            self.add_font("ArialUnicodeBold", "", bold_font_path, uni=True)  # Bold version
+            print("Fonts loaded successfully.")
+        else:
+            print(f"Font files not found! Ensure '{regular_font_path}' and '{bold_font_path}' are in the correct directory.")
+        
+    def header(self):
+        self.set_font("ArialUnicodeBold", "", 14)
+
+    def write_markdown(self, text): # more changes to this are in gemini, also i need to unit test this rather than run the whole app
+        lines = text.split("\n")
+        for line in lines:
+            if line.startswith("# "):  # H1
+                self.set_font("ArialUnicodeBold", "", 16)
+                self.cell(0, 10, line[2:], ln=True)
+            elif line.startswith("## "):  # H2
+                self.set_font("ArialUnicodeBold", "", 14)
+                self.cell(0, 8, line[3:], ln=True)
+            elif re.match(r"^[-*] ", line):  # Bullet points
+                self.set_font("ArialUnicode", "", 12)
+                self.cell(10)  # Indent
+                self.cell(0, 6, "  " + line[2:], ln=True)  # Added extra space for bullet
+            else:  # Regular text with bold/italic
+                parts = re.split(r"(\*\*|__|\*)", line)  # Split by bold, italic, underline
+                self.set_font("ArialUnicode", "", 12)  # Reset to regular font
+                for part in parts:
+                    if part in ("**", "__"):  # Bold
+                        self.set_font("ArialUnicodeBold", "", 12)
+                    elif part == "*":  # Italic ( FPDF doesn't have native underline)
+                        self.set_font("ArialUnicode", "I", 12)
+                    elif part not in ("**", "__", "*"):  # Regular text
+                        self.set_font("ArialUnicode", "", 12)
+                        self.cell(0, 6, part)
+                self.ln(6)  # Move to the next line
+                
 # OpenAI client
 client = OpenAI(api_key=st.secrets["general"]["project_oai_key"])
 
@@ -107,15 +153,15 @@ if "download_ready" not in st.session_state:
 
 if st.session_state.download_ready:
     # Initialize the PDF object
-    pdf = FPDF()
+    pdf = PDF()
     pdf.add_page()
 
-    # Add a Unicode-compatible font
-    pdf.add_font('ArialUnicode', '', 'Arial-Unicode-Regular.ttf', uni=True)
-    pdf.set_font('ArialUnicode', '', 12)
+    # Set the header font with exact match (remove "B" if not defined in the add_font)
+    pdf.set_font("ArialUnicodeBold", "", 14)  # Use the bold variant
+    pdf.cell(0, 10, "Markdown to PDF", ln=True, align="C")
 
     text_content = st.session_state.gpt_response
-    pdf.multi_cell(0, 10, text_content)
+    pdf.write_markdown(text_content)
 
     # Generate the PDF output as bytes
     pdf_output = BytesIO()
