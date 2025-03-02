@@ -62,16 +62,16 @@ This is regular text.
     pdf.add_page()
     pdf.write_markdown(md_text)
 
-    pdf_output = BytesIO()
-    pdf.output(pdf_output, dest="F")
-    pdf_output.seek(0)
+pdf_output = BytesIO()
+pdf.output(pdf_output, dest="F")
+pdf_output.seek(0)
 
-    # Output PDF to a file for manual inspection
-    with open("test_output.pdf", "wb") as f:
-        f.write(pdf_output.getvalue())
+# Output PDF to a file for manual inspection
+with open("test_output.pdf", "wb") as f:
+    f.write(pdf_output.getvalue())
 
-    # Provide a message to view the PDF
-    print("PDF saved as 'test_output.pdf'. Please open it to verify formatting.")
+# Provide a message to view the PDF
+print("PDF saved as 'test_output.pdf'. Please open it to verify formatting.")
 
-    # Basic assertion: Check if the PDF file was created
-    assert os.path.exists("test_output.pdf")
+# Basic assertion: Check if the PDF file was created
+assert os.path.exists("test_output.pdf")

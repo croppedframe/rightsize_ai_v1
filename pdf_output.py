@@ -33,21 +33,28 @@ class PDF(FPDF):
             elif line.startswith("## "):  # H2
                 self.set_font("ArialUnicodeBold", "", 14)
                 self.cell(0, 8, line[3:], ln=True)
+            elif line.startswith("### "):  # H3
+                self.set_font("ArialUnicodeBold", "", 12)
+                self.cell(0, 6, line[4:], ln=True)
             elif re.match(r"^[-*] ", line):  # Bullet points
                 self.set_font("ArialUnicode", "", 12)
                 self.cell(10)  # Indent
                 self.cell(0, 6, "  " + line[2:], ln=True)  # Added extra space for bullet
+            elif line == "---":  # Horizontal rule
+                self.ln(2)  # Add some space before the line
+                self.line(10, self.y, self.w - 10, self.y)  # Draw the line
+                self.ln(2)  # Add some space after the line
             else:  # Regular text with bold/italic
                 parts = re.split(r"(\*\*|\*)", line)  # Split by bold, italic, underline
                 self.set_font("ArialUnicode", "", 12)  # Reset to regular font
                 for part in parts:
                     if part in ("**", "__"):  # Bold
                         self.set_font("ArialUnicodeBold", "", 12)
-                    elif part == "*":  # Italic ( FPDF doesn't have native underline)
+                    elif part == "*":  # Italic (FPDF doesn't have native underline)
                         self.set_font("ArialUnicode", "I", 12)
                     elif part not in ("**", "__", "*"):  # Regular text
                         self.set_font("ArialUnicode", "", 12)
-                        self.cell(0, 6, part)
+                        self.cell(0, 6, part, ln=True)
                 self.ln(6)  # Move to the next line
 
 md_text = """
@@ -76,13 +83,14 @@ pdf.add_page()
 
 # Set the header font with exact match (remove "B" if not defined in the add_font)
 pdf.set_font("ArialUnicodeBold", "", 14)  # Use the bold variant
-pdf.cell(0, 10, "Markdown to PDF", ln=True, align="C")
+pdf.cell(0, 10, "RightSizeAI xRoom Suggestions", ln=True, align="C")
 
 pdf.write_markdown(md_text)
 
 # Generate the PDF output as bytes
 pdf_output = BytesIO()
-pdf.output(pdf_output, dest="F")
+pdf_string = pdf.output(dest="S").encode('latin1') #Get the pdf as a string and encode it.
+pdf_output.write(pdf_string) #Write the string to the BytesIO object.
 pdf_output.seek(0)  # Reset pointer to start
 
 # Save the PDF to a file
