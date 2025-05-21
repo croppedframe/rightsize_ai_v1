@@ -67,35 +67,11 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
         document_id = new_doc.get("documentId")
         st.success(f"Created Google Doc: https://docs.google.com/document/d/{document_id}/edit")
 
-        # 2. Insert the GPT Output Text
-        requests = [
-            {
-                "insertText": {
-                    "location": {
-                        "index": 1, # Insert at the beginning of the document body
-                    },
-                    "text": gpt_output_text + "\n\n" # Add some space after the text
-                }
-            },
-            {
-                 "insertText": {
-                    "location": {
-                        "index": 1, # Insert title before the text
-                    },
-                    "text": f"Rightsize AI Analysis for {st.session_state.room} ({st.session_state.goal})\n\n"
-                 }
-            }
-        ]
-
-        docs_service.documents().batchUpdate(
-            documentId=document_id, body={"requests": requests}
-        ).execute()
-
-
-        # 3. Upload the Image to Google Drive and Insert into Doc
+        # 2. Upload the Image to Google Drive and Make it Publicly Accessible
         # Reset the file pointer before reading for upload
         image_file.seek(0)
-        file_metadata = {"name": "uploaded_room_image", "mimeType": "image/jpeg"} # Adjust mimeType if needed
+        # Using the original filename for the uploaded image
+        file_metadata = {"name": image_file.name, "mimeType": image_file.type}
         media = MediaIoBaseUpload(image_file, mimetype=file_metadata["mimeType"], resumable=True)
         uploaded_file_in_drive = drive_service.files().create(
             body=file_metadata, media_body=media, fields="id"
@@ -103,37 +79,85 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
         file_id = uploaded_file_in_drive.get("id")
         st.info(f"Uploaded image to Google Drive with ID: {file_id}")
 
-        # Insert the image from Drive into the document
-        image_request = [
-    {
-        "insertInlineImage": {
-            "location": {
-                "index": 1 + len(f"Rightsize AI Analysis for {st.session_state.room} ({st.session_state.goal})\n\n") + len(gpt_output_text) + 2
-            },
-            "uri": f"https://drive.google.com/uc?export=view&id={file_id}",
-            "objectSize": {
-                "height": {"magnitude": 300, "unit": "PT"},
-                "width": {"magnitude": 400, "unit": "PT"}
-            }
+        # --- IMPORTANT NEW STEP: Make the uploaded file publicly accessible ---
+        public_permission = {
+            'type': 'anyone',
+            'role': 'reader' # Allows anyone with the link to view
         }
-    }
-]
-
-        docs_service.documents().batchUpdate(
-             documentId=document_id, body={"requests": image_request}
+        drive_service.permissions().create(
+            fileId=file_id,
+            body=public_permission,
+            fields='id'
         ).execute()
-        st.success("Inserted image into the document.")
+        st.success("Image made publicly accessible for embedding.")
+        # --- END NEW STEP ---
 
+        # 3. Prepare requests for the document (Image FIRST, then text)
+        requests = []
+        current_index = 1  # Start index for insertions
+
+        # Insert the image at the beginning (index 1)
+        requests.append(
+            {
+                "insertInlineImage": {
+                    "location": {
+                        "index": current_index
+                    },
+                    "uri": f"https://drive.google.com/uc?export=view&id={file_id}",
+                    "objectSize": {
+                        "height": {"magnitude": 300, "unit": "PT"},
+                        "width": {"magnitude": 400, "unit": "PT"}
+                    }
+                }
+            }
+        )
+        # After inserting an inline object, the next text insertion should be at the index *after* the object + 1 for an implied newline
+        current_index += 2  # Move index past the image and an implied newline
+
+        # Add a newline after the image for better spacing before text
+        requests.append(
+            {
+                "insertText": {
+                    "location": {
+                        "index": current_index
+                    },
+                    "text": "\\n"
+                }
+            }
+        )
+        current_index += 1  # Update index after inserting newline
+
+        # Insert the combined text content
+        doc_content = (
+            f"Rightsize AI Analysis for {st.session_state.room} ({st.session_state.goal})\\n\\n"
+            f"{gpt_output_text}\\n\\n"  # Add some space after the text
+        )
+        requests.append(
+            {
+                "insertText": {
+                    "location": {
+                        "index": current_index  # Insert text after the image and newline
+                    },
+                    "text": doc_content
+                }
+            }
+        )
+
+        # Execute all document update requests in one batch
+        docs_service.documents().batchUpdate(
+            documentId=document_id, body={"requests": requests}
+        ).execute()
+        st.success("Inserted image and text content into the document.")
 
         # 4. Share the Document with the User's Email
         share_permission = {
             "type": "user",
-            "role": "reader", # Or 'writer' if you want them to be able to edit
+            "role": "reader",  # Or 'writer' if you want them to be able to edit
             "emailAddress": user_email
         }
         drive_service.permissions().create(
             fileId=document_id,
-            body={"type": "anyone", "role": "reader"},
+            body=share_permission,  # Use share_permission, not type: "anyone"
             fields="id",
             sendNotificationEmail=True
         ).execute()
@@ -143,17 +167,15 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
         master_permission = {
             "type": "user",
             "role": "writer",  # or "reader" if you want view-only
-            "emailAddress": "chris@croppedframe.xyz"
+            "emailAddress": st.secrets["google_service_account"]["client_email"]
         }
         drive_service.permissions().create(
             fileId=document_id,
             body=master_permission,
             fields="id",
-            sendNotificationEmail=False  # Don't send email notification to master
+            sendNotificationEmail=False
         ).execute()
         st.info("Also shared with master account.")
-
-        return f"Successfully created and shared Google Doc: https://docs.google.com/document/d/{document_id}/edit"
 
         return f"Successfully created and shared Google Doc: https://docs.google.com/document/d/{document_id}/edit"
 
