@@ -92,7 +92,7 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
         st.success("Image made publicly accessible for embedding.")
         # --- END NEW STEP ---
 
-        # 3. Prepare requests for the document (Image FIRST, then text)
+                # 3. Prepare requests for the document (Image FIRST, then text)
         requests = []
         current_index = 1  # Start index for insertions
 
@@ -111,21 +111,23 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
                 }
             }
         )
-        # After inserting an inline object, the next text insertion should be at the index *after* the object + 1 for an implied newline
-        current_index += 2  # Move index past the image and an implied newline
+        # After inserting the image, the next available index for new content is generally 2.
+        # This is because the image occupies index 1, and the next content starts after it.
+        # Let's then add two newlines for good spacing.
+        current_index = 2 # The index *after* the inserted image.
 
-        # Add a newline after the image for better spacing before text
+        # Add two newlines for better spacing after the image before text
         requests.append(
             {
                 "insertText": {
                     "location": {
                         "index": current_index
                     },
-                    "text": "\\n"
+                    "text": "\\n\\n" # Two newlines for spacing
                 }
             }
         )
-        current_index += 1  # Update index after inserting newline
+        current_index += 2 # Update index after inserting two newlines
 
         # Insert the combined text content
         doc_content = (
