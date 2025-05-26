@@ -63,7 +63,7 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
         docs_service = build("docs", "v1", credentials=creds, static_discovery=False)
         drive_service = build("drive", "v3", credentials=creds, static_discovery=False)
 
-        # 1. Upload the Image to Google Drive and Make it Publicly Accessible
+        # 1. Upload the Image to Google Drive
         image_file.seek(0)
         image_file_metadata = {"name": image_file.name, "mimeType": image_file.type}
         image_media_body = MediaIoBaseUpload(image_file, mimetype=image_file_metadata["mimeType"], resumable=True)
@@ -71,18 +71,15 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
             body=image_file_metadata, media_body=image_media_body, fields="id"
         ).execute()
         image_file_id = uploaded_image_in_drive.get("id")
-        st.info(f"Uploaded image to Google Drive with ID: {image_file_id}")
+        st.info(f"Uploaded image to Google Drive with ID: {image_file_id} (private)")
 
-        public_permission = {
-            'type': 'anyone',
-            'role': 'reader'
-        }
+        # Make the image publicly accessible so Docs API can fetch it
         drive_service.permissions().create(
             fileId=image_file_id,
-            body=public_permission,
-            fields='id'
+            body={"type": "anyone", "role": "reader"},
+            fields="id"
         ).execute()
-        st.success("Image made publicly accessible for embedding.")
+        st.info("Image temporarily made public for embedding in Google Doc.")
 
         # 2. Convert GPT's Markdown output to HTML
         # Remove the title/prefix from the HTML content.
@@ -251,6 +248,9 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
         ).execute()
         st.info("Also shared with master account.")
 
+        # 5. Revert the Image to Private
+        drive_service.permissions().delete(fileId=image_file_id, permissionId="anyone").execute()
+        st.info("Published image reverted to private.")
         return f"Successfully created and shared Google Doc: https://docs.google.com/document/d/{document_id}/edit"
 
     except Exception as e:
