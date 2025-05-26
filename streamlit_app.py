@@ -88,8 +88,6 @@ def create_and_populate_google_doc(image_file, gpt_output_text, user_email):
         # Remove the title/prefix from the HTML content.
         # The HTML content will *only* be the GPT output, Markdown-converted
         gpt_output_html = markdown.markdown(gpt_output_text, extensions=['fenced_code', 'tables', 'nl2br'])
-
-        # full_html_content will now just be the GPT-generated HTML
         full_html_content = gpt_output_html
 
         # Create an in-memory HTML file from the combined HTML
